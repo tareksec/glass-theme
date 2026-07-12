@@ -24,10 +24,10 @@
           </svg>
         </button>
 
-        <div class="nav-links">
-          <a href="#" class="nav-link" data-panel="bookmarks">Bookmarks</a>
-          <a href="#" class="nav-link" data-panel="recent">Recent Tabs</a>
-          <a href="#" class="nav-link" data-panel="shortcuts">Shortcuts</a>
+        <div class="nav-links" role="navigation" aria-label="Quick access">
+          <a href="#" class="nav-link" data-panel="bookmarks" aria-haspopup="true" aria-expanded="false">Bookmarks</a>
+          <a href="#" class="nav-link" data-panel="recent" aria-haspopup="true" aria-expanded="false">Recent Tabs</a>
+          <a href="#" class="nav-link" data-panel="shortcuts" aria-haspopup="true" aria-expanded="false">Shortcuts</a>
         </div>
 
         <div class="nav-right">
@@ -61,7 +61,7 @@
       </nav>
 
       <!-- Panel that opens for Bookmarks / Recent Tabs / Shortcuts -->
-      <div class="dropdown-panel embossed" id="navPanel" hidden>
+      <div class="dropdown-panel embossed" id="navPanel" role="region" aria-live="polite" hidden>
         <div class="panel-title" id="panelTitle">Bookmarks</div>
         <div class="panel-body" id="panelBody"></div>
         <div class="panel-footer" id="panelFooter" hidden>
@@ -231,8 +231,8 @@
       </div>
 
       <div class="settings-section">
-        <span class="settings-label">Accent color</span>
-        <div class="accent-swatches" id="accentSwatches"></div>
+        <span class="settings-label" id="accentLabel">Accent color</span>
+        <div class="accent-swatches" id="accentSwatches" role="radiogroup" aria-labelledby="accentLabel"></div>
       </div>
 
       <div class="settings-section settings-row">
@@ -256,6 +256,6 @@
     </aside>
   </div>
 
-  <script src="script.js"></script>
+  <script src="js/main.js" type="module"></script>
 </body>
 </html>

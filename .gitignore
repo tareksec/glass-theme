@@ -47,3 +47,6 @@ Thumbs.db
 # Replit
 .cache/
 .local/
+
+# Chrome extension production build artifacts
+chrome-extension/bird-newtab/build/

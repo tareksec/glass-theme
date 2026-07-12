@@ -1,0 +1,67 @@
+The extension is functionally complete. Now bring it to production/Chrome Web Store-ready quality. Cover every item below.
+
+## 1. Icons & Branding Assets
+- Generate a real icon set for "Bird" (not placeholder squares) at 16x16, 48x48, 128x128 — simple, recognizable at small sizes, matching the neumorphic palette
+- Add a 440x280 promo tile and at least one 1280x800 screenshot if preparing for Web Store listing (note: actual screenshots should be taken after final UI is done)
+
+## 2. Manifest Hardening
+- Set `"version"` properly (start at `1.0.0`, semantic versioning going forward)
+- Add `"description"` (short, under 132 chars, Store-compliant)
+- Add `"author"`
+- Review `"permissions"` — only `storage`, `bookmarks`, `tabs` should be present; if `tabs` is only used for switching to a tab by ID, confirm whether the lighter-weight `tabs`-adjacent APIs suffice or if `activeTab` reduces scope — minimize requested permissions since Store review flags anything broader than necessary
+- Add `"minimum_chrome_version"` matching the Manifest V3 APIs actually used
+- Explicit `"content_security_policy"` block confirming no remote code execution paths exist
+
+## 3. Error Handling & Edge Cases
+- Wrap every `chrome.storage`, `chrome.bookmarks`, `chrome.tabs` call in proper error handling (`chrome.runtime.lastError` checks), not just happy-path code
+- Handle the case where the user **denies** bookmarks/tabs permission (if using optional permissions) or where those APIs return empty — dropdowns should degrade gracefully, not throw
+- Handle `chrome.storage.local` quota errors (unlikely but should not crash the page)
+- Handle first-run state cleanly — sensible defaults for tasks/notes/settings on a fresh install, no undefined/null rendering as "undefined" text in the UI
+- Guard all JSON.parse calls on stored data with try/catch in case of corrupted storage
+
+## 4. Performance Audit
+- Confirm zero layout thrashing — batch DOM reads/writes, avoid forced reflows in the clock tick and animation loops
+- Lazy-render dropdown contents (Bookmarks/Recent Tabs) only when opened, not on every page load
+- Debounce/throttle any input-driven storage writes (notes, task edits) — already specified for notes, apply same pattern to task edits
+- Run and report Lighthouse/DevTools Performance numbers for the new-tab page load (target: first paint near-instant, since this blocks every new tab a user opens)
+- Minify `style.css` and `script.js` for production build if file size is non-trivial (keep unminified source available too)
+
+## 5. Accessibility (a11y)
+- All interactive elements (toggles, buttons, dropdown triggers, task checkboxes) need proper `aria-label`/`role` attributes and visible focus states (neumorphic focus ring, not browser default outline removed with nothing replacing it)
+- Keyboard navigation: tab order should be logical, Enter/Space should activate buttons and toggles, Escape should close open panels/modals
+- Color contrast: verify text-on-background ratios meet WCAG AA, especially the lighter secondary-grey text on `#e0e5ec`
+- `prefers-reduced-motion` already required for the ambient animation — confirm it's applied everywhere, not just that one effect
+
+## 6. Security
+- Sanitize any user-input that gets rendered as HTML (task text, notes, shortcut names/URLs) to prevent injected markup — use `textContent`, not `innerHTML`, wherever user data is inserted
+- Validate shortcut URLs before storing/opening (must be a valid `http(s)://` URL) to avoid `javascript:` URI or malformed-link issues
+- Confirm no remote script/style loading anywhere (already covered by CSP, but verify no `<script src="http...">` or CDN references slipped back in)
+
+## 7. Code Quality & Structure
+- Split `script.js` into logical modules if it's grown large (e.g. `clock.js`, `tasks.js`, `settings.js`, `storage.js`) loaded via ES modules or bundled, whichever fits Manifest V3 service-worker-free New Tab context
+- Remove all `console.log` debug statements from production code (keep `console.error` for genuine error paths)
+- Add inline comments for non-obvious logic (storage schema, animation performance guards)
+- Consistent code style throughout (formatting, naming conventions)
+
+## 8. Documentation
+Update the README with:
+- What the extension does, install instructions (unpacked for now, Store-pending)
+- Full permissions list and **why** each is needed (Store review and users both expect this)
+- Data & privacy statement: everything local, no analytics, no external network calls, no account — be explicit since this matters for Store privacy disclosures
+- Known limitations (e.g. no cross-device sync yet)
+- Screenshot(s) of the final UI
+
+## 9. Privacy Practices (required for Chrome Web Store submission)
+- Confirm the extension makes zero external network requests (except the intentional Google search redirect, which is a user-initiated navigation, not a background call) — this affects the Store's "Privacy practices" disclosure form
+- Draft a short privacy policy statement (can be a `PRIVACY.md` in the repo) stating no data collection, no third-party sharing, local-only storage — needed if submitting to the Store
+
+## 10. Final Validation Checklist
+Confirm and report on each:
+- [ ] No console errors/warnings on load, on every widget interaction, and in an incognito-like fresh profile
+- [ ] Works correctly with bookmarks/tabs permissions denied (if optional) or freshly granted
+- [ ] All data persists correctly across browser restarts, not just tab close/reopen
+- [ ] Lighthouse performance score for the page (report the number)
+- [ ] Keyboard-only navigation works end-to-end
+- [ ] Tested at 1280px, 1440px, and 1920px+ window widths
+
+Do not skip sections — report back what was changed under each numbered heading.

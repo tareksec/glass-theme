@@ -1,0 +1,1 @@
+- [Chrome extension build tooling without pnpm workspace membership](chrome-extension-build-tooling.md) — use npx CLI invocations (esbuild, clean-css-cli, terser), not package.json deps, for folders outside pnpm-workspace.yaml.
