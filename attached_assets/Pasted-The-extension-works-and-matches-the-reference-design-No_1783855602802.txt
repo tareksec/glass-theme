@@ -1,0 +1,36 @@
+The extension works and matches the reference design. Now apply these upgrades:
+
+## 1. Rebrand
+Replace all instances of "Dallo" / "DāLLO" with **"Bird"** — heading text, "Join Dallo" → "Join Bird" (or remove the CTA link entirely since it has no real destination), manifest.json `"name"` field, and any comments/variable names referencing "dallo".
+
+## 2. Fix full-screen layout
+Currently the dashboard sits in a fixed max-width box that doesn't fill the browser window, leaving visible empty background around it. Change the container to:
+- Use `width: 100vw; height: 100vh` (or `min-height: 100vh`) on the outer wrapper so it fills the actual New Tab viewport
+- Keep internal padding/margins so content doesn't touch screen edges, but remove the artificial box constraint
+- Ensure it still looks correct on both small (laptop, ~1280px) and large (ultrawide, 1920px+) windows — scale internal grid proportionally rather than leaving dead space, or center content with a sensible max-width (~1400px) while background/shadow-surface still spans full width
+
+## 3. Upgrade Clock widget
+- Remove the placeholder "Demo" label — show the real date only (`DD/MM` or let user pick format)
+- Add day-of-week text below the date (e.g. "Sunday")
+- Confirm the toggle switch next to it is clearly labeled or has a tooltip ("Dark mode")
+
+## 4. Upgrade Recent Tabs / Bookmarks / Shortcuts
+- **Recent Tabs**: use `chrome.tabs.query` to show last 5 visited tabs with favicon + title, clicking switches to that tab
+- **Bookmarks**: use `chrome.bookmarks.getRecent` or `getTree` to show top-level bookmarks/folders, clicking opens the link
+- **Shortcuts**: let the user pin their own frequently used links — store as an array in `chrome.storage.local`, with a simple "+" button to add a new shortcut (name + URL)
+- Add empty-state text for each dropdown (e.g. "No recent tabs yet") instead of a blank panel
+
+## 5. Data & Account clarity
+There is no login/account system — clarify this in the README:
+- All data (dark mode preference, saved shortcuts) is stored locally via `chrome.storage.local`, scoped to the Chrome profile on this device only — it does **not** sync across devices or require any account
+- Bookmarks shown are read directly from Chrome's native bookmark manager, not stored separately by this extension
+- If the user wants cross-device sync, recommend switching to `chrome.storage.sync` instead of `chrome.storage.local` (has a much smaller storage quota, so only use it for small settings like the dark-mode flag, not lists of shortcuts)
+
+## 6. Widget cards ("Stones", "Project 007", "Team mates") and the bottom info card
+These are currently static placeholder content with no real data source. Either:
+- (a) mark them clearly as decorative/demo content in the README, or
+- (b) make them editable — let the user rename items and edit the counts, persisted to `chrome.storage.local`
+
+Confirm which direction (a or b) before implementing — don't guess.
+
+Apply all fixes, then re-validate: dark mode persistence, search-on-Enter, live clock, and the new live dropdowns all need to work with zero console errors.
