@@ -14,6 +14,15 @@
   --accent-green: #6fae66;
   --accent-pink: #e9a3ac;
   --accent-orange: #eb9f4d;
+  --accent-blue: #6f9ceb;
+  --accent-purple: #a58ce0;
+  --accent-teal: #5cb8ae;
+
+  /* User-selectable highlight color (Settings > Accent color). Drives
+     toggles, the clock second hand, stat numbers and small highlights.
+     Per-board dots keep their own fixed palette for board-to-board
+     distinction, independent of this setting. */
+  --accent: var(--accent-green);
 
   --radius-xl: 30px;
   --radius-lg: 22px;
@@ -293,7 +302,8 @@ body {
   align-items: stretch;
 }
 
-.left-col {
+.left-col,
+.right-col {
   display: flex;
   flex-direction: column;
   gap: clamp(14px, 2vw, 20px);
@@ -302,6 +312,30 @@ body {
 .card {
   border-radius: var(--radius-lg);
   padding: 20px;
+}
+
+/* Subtle press-in feedback on interactive surfaces, consistent everywhere. */
+.card,
+.icon-btn,
+.toggle,
+.panel-item,
+.add-shortcut-btn,
+.add-board-btn,
+.task-add-btn,
+.board-icon-btn,
+.reset-btn {
+  transition: transform 0.15s ease-out, box-shadow 0.15s ease-out, color 0.15s ease-out,
+    background-color 0.15s ease-out;
+}
+
+.icon-btn:active,
+.toggle:active,
+.add-shortcut-btn:active,
+.add-board-btn:active,
+.task-add-btn:active,
+.board-icon-btn:active,
+.reset-btn:active {
+  transform: scale(0.97);
 }
 
 /* ---------------- Clock widget ---------------- */
@@ -345,7 +379,7 @@ body {
 
 .toggle[aria-pressed="true"] .toggle-knob {
   transform: translateX(20px);
-  background: var(--accent-orange);
+  background: var(--accent);
 }
 
 .clock-face {
@@ -406,7 +440,7 @@ body {
   width: 2px;
   height: 60px;
   margin-left: -1px;
-  background: var(--accent-orange);
+  background: var(--accent);
 }
 
 .clock-center {
@@ -439,21 +473,33 @@ body {
   color: var(--text-secondary);
 }
 
-/* ---------------- List widget ---------------- */
+/* ---------------- Task boards widget ---------------- */
 
-.item-list {
+.board-list {
   list-style: none;
   margin: 0;
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 6px;
 }
 
-.item-row {
+.board {
+  border-radius: var(--radius-sm);
+}
+
+.board-row {
   display: flex;
   align-items: center;
   gap: 10px;
+  padding: 8px 4px;
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  transition: background-color 0.15s ease;
+}
+
+.board-row:hover {
+  background: rgba(138, 142, 163, 0.08);
 }
 
 .dot {
@@ -467,27 +513,39 @@ body {
 .dot-green { background: var(--accent-green); }
 .dot-pink { background: var(--accent-pink); }
 .dot-orange { background: var(--accent-orange); }
+.dot-blue { background: var(--accent-blue); }
+.dot-purple { background: var(--accent-purple); }
+.dot-teal { background: var(--accent-teal); }
 
-.item-name {
+.board-name {
   font-size: 14px;
   font-weight: 500;
   flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.item-meta {
-  display: flex;
-  align-items: center;
-  gap: 8px;
+.board-progress {
   font-size: 11px;
   color: var(--text-secondary);
+  flex-shrink: 0;
 }
 
-.item-meta svg {
-  vertical-align: -2px;
-  margin-right: 1px;
+.board-chevron {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+  color: var(--text-secondary);
+  transition: transform 0.2s ease;
 }
 
-.item-edit-btn {
+.board.expanded .board-chevron {
+  transform: rotate(90deg);
+}
+
+.board-icon-btn {
   border: none;
   background: none;
   color: var(--text-secondary);
@@ -495,10 +553,171 @@ body {
   font-size: 13px;
   padding: 2px 4px;
   flex-shrink: 0;
+  border-radius: 6px;
+  transition: color 0.15s ease, transform 0.15s ease;
 }
 
-.item-edit-btn:hover {
+.board-icon-btn:hover {
   color: var(--text-primary);
+}
+
+.board-icon-btn:active {
+  transform: scale(0.9);
+}
+
+.board-tasks-wrap {
+  overflow: hidden;
+  max-height: 0;
+  transition: max-height 0.25s ease;
+}
+
+.board.expanded .board-tasks-wrap {
+  max-height: 400px;
+}
+
+.task-list {
+  list-style: none;
+  margin: 4px 0 8px;
+  padding: 4px 4px 4px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+.task-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.task-checkbox {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  border-radius: 5px;
+  background: var(--surface);
+  box-shadow: var(--shadow-in-sm);
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: transparent;
+  padding: 0;
+}
+
+.task-checkbox.done {
+  color: var(--accent);
+}
+
+.task-checkbox.done svg {
+  animation: check-pop 0.22s ease;
+}
+
+@keyframes check-pop {
+  0% {
+    transform: scale(0.4);
+    opacity: 0;
+  }
+  60% {
+    transform: scale(1.15);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.task-text {
+  font-size: 13px;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.task-text.done {
+  color: var(--text-secondary);
+  text-decoration: line-through;
+}
+
+.task-remove {
+  border: none;
+  background: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: 13px;
+  flex-shrink: 0;
+  padding: 0 2px;
+}
+
+.task-remove:hover {
+  color: #c0564f;
+}
+
+.task-add-row {
+  display: flex;
+  gap: 6px;
+  padding: 2px 4px 6px 20px;
+}
+
+.task-add-input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  outline: none;
+  background: var(--surface);
+  box-shadow: var(--shadow-in-sm);
+  border-radius: var(--radius-sm);
+  padding: 6px 10px;
+  font-size: 12px;
+  color: var(--text-primary);
+  font-family: inherit;
+}
+
+.task-add-btn {
+  border: none;
+  background: var(--surface);
+  box-shadow: var(--shadow-out-sm);
+  border-radius: var(--radius-sm);
+  padding: 6px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-primary);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.task-add-btn:active {
+  box-shadow: var(--shadow-in-sm);
+  transform: scale(0.97);
+}
+
+.add-board-btn {
+  width: 100%;
+  margin-top: 10px;
+  border: none;
+  background: var(--surface);
+  box-shadow: var(--shadow-out-sm);
+  border-radius: var(--radius-sm);
+  padding: 9px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: color 0.15s ease, transform 0.15s ease;
+}
+
+.add-board-btn:hover {
+  color: var(--accent);
+}
+
+.add-board-btn:active {
+  box-shadow: var(--shadow-in-sm);
+  transform: scale(0.97);
 }
 
 /* ---------------- Info widget ---------------- */
@@ -577,6 +796,44 @@ body {
   color: var(--text-primary);
 }
 
+/* ---------------- This week stats strip ---------------- */
+
+.stats-strip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 14px;
+}
+
+.stat-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex: 1;
+  gap: 2px;
+}
+
+.stat-value {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--accent);
+}
+
+.stat-label {
+  font-size: 10px;
+  color: var(--text-secondary);
+  text-align: center;
+  line-height: 1.3;
+}
+
+.stat-divider {
+  width: 1px;
+  height: 28px;
+  background: var(--shadow-dark);
+  opacity: 0.6;
+  flex-shrink: 0;
+}
+
 /* ---------------- Hero card ---------------- */
 
 .hero-card {
@@ -648,6 +905,250 @@ body {
   color: var(--text-primary);
 }
 
+/* ---------------- Quick Notes widget ---------------- */
+
+.notes-card {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 160px;
+}
+
+.notes-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.notes-count {
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+.notes-textarea {
+  flex: 1;
+  width: 100%;
+  min-height: 100px;
+  resize: none;
+  border: none;
+  outline: none;
+  border-radius: var(--radius-sm);
+  padding: 12px 14px;
+  font-family: inherit;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text-primary);
+}
+
+.notes-textarea::placeholder {
+  color: var(--text-secondary);
+}
+
+/* ---------------- Ambient background ---------------- */
+/* GPU-only animation (transform + opacity), toggleable, paused when the
+   tab is hidden or the user prefers reduced motion. See script.js. */
+
+.ambient {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.blob {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(60px);
+  opacity: 0.35;
+  will-change: transform;
+  animation-duration: 34s;
+  animation-timing-function: ease-in-out;
+  animation-iteration-count: infinite;
+  animation-direction: alternate;
+}
+
+.blob-1 {
+  width: 420px;
+  height: 420px;
+  left: -8%;
+  top: -10%;
+  background: radial-gradient(circle, var(--accent-green) 0%, transparent 70%);
+  animation-name: drift-1;
+}
+
+.blob-2 {
+  width: 460px;
+  height: 460px;
+  right: -12%;
+  top: 20%;
+  background: radial-gradient(circle, var(--accent-pink) 0%, transparent 70%);
+  animation-name: drift-2;
+  animation-duration: 40s;
+}
+
+.blob-3 {
+  width: 380px;
+  height: 380px;
+  left: 30%;
+  bottom: -18%;
+  background: radial-gradient(circle, var(--accent-orange) 0%, transparent 70%);
+  animation-name: drift-3;
+  animation-duration: 46s;
+}
+
+@keyframes drift-1 {
+  from { transform: translate(0, 0) scale(1); }
+  to { transform: translate(60px, 40px) scale(1.12); }
+}
+
+@keyframes drift-2 {
+  from { transform: translate(0, 0) scale(1); }
+  to { transform: translate(-50px, 60px) scale(1.08); }
+}
+
+@keyframes drift-3 {
+  from { transform: translate(0, 0) scale(1); }
+  to { transform: translate(40px, -50px) scale(1.1); }
+}
+
+/* Ambient disabled from Settings, or tab hidden (Page Visibility API) --
+   pausing keeps the composited layer alive without burning frames. */
+.ambient.is-paused .blob {
+  animation-play-state: paused;
+}
+
+.ambient.is-off {
+  display: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .blob {
+    animation: none !important;
+  }
+}
+
+/* ---------------- Settings panel ---------------- */
+
+.settings-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(20, 22, 30, 0.28);
+  display: flex;
+  justify-content: flex-end;
+  z-index: 50;
+  animation: overlay-in 0.18s ease;
+}
+
+@keyframes overlay-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.settings-panel {
+  width: min(340px, 88vw);
+  height: 100%;
+  padding: 24px 22px;
+  border-radius: var(--radius-lg) 0 0 var(--radius-lg);
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  animation: panel-slide-in 0.22s ease-out;
+}
+
+@keyframes panel-slide-in {
+  from {
+    transform: translateX(24px);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+.settings-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.settings-title {
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.settings-section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.settings-row {
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.settings-label {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.accent-swatches {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.accent-swatch {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: none;
+  cursor: pointer;
+  box-shadow: var(--shadow-out-sm);
+  position: relative;
+  transition: transform 0.15s ease-out;
+}
+
+.accent-swatch:active {
+  transform: scale(0.92);
+}
+
+.accent-swatch.selected::after {
+  content: "";
+  position: absolute;
+  inset: -4px;
+  border-radius: 50%;
+  border: 2px solid var(--text-primary);
+}
+
+.reset-btn {
+  border: none;
+  background: var(--surface);
+  box-shadow: var(--shadow-out-sm);
+  border-radius: var(--radius-sm);
+  padding: 10px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #c0564f;
+  cursor: pointer;
+}
+
+.reset-btn:active {
+  box-shadow: var(--shadow-in-sm);
+}
+
+.settings-hint {
+  font-size: 11px;
+  color: var(--text-secondary);
+  line-height: 1.4;
+  margin: 8px 0 0;
+}
+
 /* ---------------- Responsive scaling ---------------- */
 
 @media (max-width: 860px) {
@@ -668,5 +1169,24 @@ body {
 
   .hero-copy {
     max-width: none;
+  }
+
+  .settings-panel {
+    border-radius: var(--radius-lg);
+    margin: 12px;
+    height: calc(100% - 24px);
+  }
+}
+
+/* Respect OS-level reduced-motion for all decorative transitions, not just
+   the ambient background. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
   }
 }

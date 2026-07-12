@@ -1,0 +1,49 @@
+The core extension works well. Now enhance it into a genuinely useful productivity dashboard. Implement the following:
+
+## 1. Real Task Manager (replace "Stones / Project 007 / Team mates" placeholder list)
+- Convert the 3-row list into a functional to-do system, grouped as "boards" (user can rename/add/delete boards, default to the existing 3 names)
+- Each board holds a list of tasks (text + checkbox + optional due indicator)
+- Clicking a board row expands it inline (or opens a small panel) showing its tasks — add task, check off, delete task
+- The small numbers/icons currently shown (counts like "7/9") should now reflect **real** completed/total task counts, computed live
+- Persist everything to `chrome.storage.local` under a clear key structure (e.g. `boards: [{id, name, color, tasks: [{id, text, done}]}]`)
+
+## 2. Quick Notes widget
+- Add a new widget card (place it in the empty space at the bottom of the right column, below the hero card — see section 5)
+- Single scrollable textarea styled in the neumorphic inset style, autosaves on input (debounced ~500ms) to `chrome.storage.local`
+- Small "Notes" label header, maybe a subtle character count
+
+## 3. Settings Panel
+- Add a gear icon near the top-right nav (next to the account icon)
+- Clicking opens a neumorphic modal/slide-in panel with:
+  - Accent color picker (swap the current accent color used for highlights/dots/toggle — store as a CSS variable, persist choice)
+  - Toggle: enable/disable the background ambient animation (see section 4) — default ON but let users with low-end machines turn it off
+  - Toggle: dark mode (move existing toggle logic here too, keep the clock-widget toggle as a synced shortcut to the same setting, not a duplicate independent one)
+  - Reset button: clears all stored data (tasks, notes, shortcuts, settings) back to defaults, with a confirm step
+- All settings persist to `chrome.storage.local`
+
+## 4. Background ambient animation — performance-conscious
+- Add a subtle, slow-moving background effect (soft gradient blobs drifting, or a very faint particle drift) behind the main dashboard card, matching the neumorphic `#e0e5ec` palette (barely-there tonal variation, not distracting)
+- **Critical performance constraints**:
+  - Use CSS `transform`/`opacity` animations only (GPU-accelerated), never animate `width`/`height`/`top`/`left`/`box-shadow` directly on every frame
+  - If using JS/Canvas for particles, cap it at a small number of elements (≤15) and use `requestAnimationFrame`, not `setInterval`
+  - Respect `prefers-reduced-motion: reduce` — disable animation entirely for users with that OS setting
+  - Pause the animation via the Page Visibility API when the tab isn't focused/visible, so it doesn't burn CPU in background tabs
+  - Must be toggleable off from the Settings panel (section 3)
+
+## 5. Fill empty space at the bottom
+Below the current widgets there's unused vertical space. Add:
+- The new **Quick Notes widget** (section 2) in the bottom-right, under the hero card
+- A small **"This week" mini stats strip** in the bottom-left, under the Focus-on-tasks card — e.g. total tasks completed this week, streak count, or similar derived from the task data in section 1 (keep it simple, don't over-engineer)
+
+## 6. Animations & micro-interactions polish
+- Buttons/toggles/cards: subtle scale (1.0 → 0.97) + shadow-depth change on click (press-in neumorphic feel), smooth 150–200ms ease-out transitions
+- Dropdown panels (Bookmarks/Recent Tabs/Shortcuts): fade + slight slide-down on open, not an instant snap
+- Checking off a to-do item: brief checkmark animation, not just an instant state flip
+- Keep all of this consistent with the reduced-motion and performance rules from section 4
+
+## 7. Validation
+After implementing, confirm:
+- No layout shift/overflow at common window sizes (1280px–1920px+)
+- Zero console errors
+- Ambient animation measurably stays under a reasonable CPU/GPU budget (mention how you verified this — e.g. DevTools Performance tab)
+- All new data (tasks, notes, settings) round-trips correctly through `chrome.storage.local` after closing and reopening a tab

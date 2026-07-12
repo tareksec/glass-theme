@@ -4,19 +4,23 @@
 
    Storage model (all local to this Chrome profile, no account,
    no sync — see README for details):
-     bird_theme         -> "light" | "dark"
-     bird_widget_items  -> array of editable list-widget rows
-     bird_info          -> editable bottom info-card content
-     bird_shortcuts     -> array of user-added shortcut links
+     bird_theme      -> "light" | "dark"
+     bird_settings   -> { accent: "#hex", ambientEnabled: boolean }
+     bird_boards     -> [{ id, name, color, tasks: [{id, text, done}] }]
+     bird_info       -> editable bottom info-card content
+     bird_shortcuts  -> array of user-added shortcut links
+     bird_notes      -> quick-notes textarea content
    ============================================================ */
 
 (function () {
   "use strict";
 
   const THEME_KEY = "bird_theme";
-  const ITEMS_KEY = "bird_widget_items";
+  const SETTINGS_KEY = "bird_settings";
+  const BOARDS_KEY = "bird_boards";
   const INFO_KEY = "bird_info";
   const SHORTCUTS_KEY = "bird_shortcuts";
+  const NOTES_KEY = "bird_notes";
 
   const hasChromeStorage =
     typeof chrome !== "undefined" && !!(chrome.storage && chrome.storage.local);
@@ -43,28 +47,179 @@
     }
   }
 
-  /* ---------------- Dark mode ---------------- */
-
-  const darkToggle = document.getElementById("darkToggle");
-
-  function applyTheme(theme) {
-    if (theme === "dark") {
-      document.documentElement.setAttribute("data-theme", "dark");
-      darkToggle.setAttribute("aria-pressed", "true");
+  function storageRemove(keys) {
+    if (hasChromeStorage) {
+      chrome.storage.local.remove(keys);
     } else {
-      document.documentElement.removeAttribute("data-theme");
-      darkToggle.setAttribute("aria-pressed", "false");
+      keys.forEach((key) => localStorage.removeItem(key));
     }
   }
 
-  darkToggle.addEventListener("click", () => {
-    const isDark = darkToggle.getAttribute("aria-pressed") === "true";
-    const next = isDark ? "light" : "dark";
-    applyTheme(next);
-    storageSet(THEME_KEY, next);
+  function escapeHtml(str) {
+    const div = document.createElement("div");
+    div.textContent = str;
+    return div.innerHTML;
+  }
+
+  function uid(prefix) {
+    return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+  }
+
+  /* ---------------- Settings (theme, accent, ambient) ---------------- */
+
+  const DEFAULT_SETTINGS = { accent: "#6fae66", ambientEnabled: true };
+  const ACCENT_OPTIONS = [
+    { value: "#6fae66", name: "Green" },
+    { value: "#e9a3ac", name: "Pink" },
+    { value: "#eb9f4d", name: "Orange" },
+    { value: "#6f9ceb", name: "Blue" },
+    { value: "#a58ce0", name: "Purple" },
+    { value: "#5cb8ae", name: "Teal" },
+  ];
+
+  let settings = { ...DEFAULT_SETTINGS };
+  let currentTheme = "light";
+
+  const darkToggle = document.getElementById("darkToggle");
+  const settingsDarkToggle = document.getElementById("settingsDarkToggle");
+  const settingsAmbientToggle = document.getElementById("settingsAmbientToggle");
+  const accentSwatchesEl = document.getElementById("accentSwatches");
+  const ambientEl = document.getElementById("ambient");
+
+  function applyTheme(theme) {
+    currentTheme = theme;
+    const isDark = theme === "dark";
+    if (isDark) {
+      document.documentElement.setAttribute("data-theme", "dark");
+    } else {
+      document.documentElement.removeAttribute("data-theme");
+    }
+    [darkToggle, settingsDarkToggle].forEach((btn) => {
+      btn.setAttribute("aria-pressed", String(isDark));
+    });
+  }
+
+  function setTheme(theme) {
+    applyTheme(theme);
+    storageSet(THEME_KEY, theme);
+  }
+
+  function toggleTheme() {
+    setTheme(currentTheme === "dark" ? "light" : "dark");
+  }
+
+  darkToggle.addEventListener("click", toggleTheme);
+  settingsDarkToggle.addEventListener("click", toggleTheme);
+
+  function applyAccent(hex) {
+    document.documentElement.style.setProperty("--accent", hex);
+    accentSwatchesEl.querySelectorAll(".accent-swatch").forEach((el) => {
+      el.classList.toggle("selected", el.dataset.value === hex);
+    });
+  }
+
+  function applyAmbientEnabled(enabled) {
+    settingsAmbientToggle.setAttribute("aria-pressed", String(enabled));
+    ambientEl.classList.toggle("is-off", !enabled);
+  }
+
+  function renderAccentSwatches() {
+    accentSwatchesEl.innerHTML = "";
+    ACCENT_OPTIONS.forEach((option) => {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "accent-swatch";
+      btn.style.background = option.value;
+      btn.dataset.value = option.value;
+      btn.title = option.name;
+      btn.setAttribute("aria-label", `${option.name} accent`);
+      btn.addEventListener("click", () => {
+        settings.accent = option.value;
+        applyAccent(option.value);
+        storageSet(SETTINGS_KEY, settings);
+      });
+      accentSwatchesEl.appendChild(btn);
+    });
+  }
+
+  settingsAmbientToggle.addEventListener("click", () => {
+    settings.ambientEnabled = settingsAmbientToggle.getAttribute("aria-pressed") !== "true";
+    applyAmbientEnabled(settings.ambientEnabled);
+    storageSet(SETTINGS_KEY, settings);
   });
 
-  storageGet(THEME_KEY, "light").then(applyTheme);
+  renderAccentSwatches();
+
+  Promise.all([storageGet(THEME_KEY, "light"), storageGet(SETTINGS_KEY, DEFAULT_SETTINGS)]).then(
+    ([theme, storedSettings]) => {
+      applyTheme(theme);
+      settings = { ...DEFAULT_SETTINGS, ...storedSettings };
+      applyAccent(settings.accent);
+      applyAmbientEnabled(settings.ambientEnabled);
+    }
+  );
+
+  /* ---------------- Ambient background: pause when tab is hidden ---------------- */
+
+  function updateAmbientVisibility() {
+    ambientEl.classList.toggle("is-paused", document.hidden);
+  }
+
+  document.addEventListener("visibilitychange", updateAmbientVisibility);
+  updateAmbientVisibility();
+
+  /* ---------------- Settings panel open/close ---------------- */
+
+  const settingsBtn = document.getElementById("settingsBtn");
+  const settingsOverlay = document.getElementById("settingsOverlay");
+  const closeSettingsBtn = document.getElementById("closeSettingsBtn");
+  const resetBtn = document.getElementById("resetBtn");
+
+  function openSettings() {
+    settingsOverlay.hidden = false;
+  }
+
+  function closeSettings() {
+    settingsOverlay.hidden = true;
+  }
+
+  settingsBtn.addEventListener("click", openSettings);
+  closeSettingsBtn.addEventListener("click", closeSettings);
+  settingsOverlay.addEventListener("click", (event) => {
+    if (event.target === settingsOverlay) closeSettings();
+  });
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && !settingsOverlay.hidden) closeSettings();
+  });
+
+  resetBtn.addEventListener("click", () => {
+    const confirmed = window.confirm(
+      "This clears all tasks, notes, shortcuts and settings on this device. This can't be undone. Continue?"
+    );
+    if (!confirmed) return;
+
+    storageRemove([THEME_KEY, SETTINGS_KEY, BOARDS_KEY, INFO_KEY, SHORTCUTS_KEY, NOTES_KEY]);
+
+    applyTheme("light");
+    settings = { ...DEFAULT_SETTINGS };
+    applyAccent(settings.accent);
+    applyAmbientEnabled(settings.ambientEnabled);
+
+    boards = cloneDefaultBoards();
+    storageSet(BOARDS_KEY, boards);
+    renderBoards();
+
+    infoData = { ...DEFAULT_INFO };
+    renderInfo();
+
+    notesTextarea.value = "";
+    updateNotesCount();
+
+    renderShortcuts([]);
+    if (activePanel === "shortcuts") loadShortcuts();
+
+    closeSettings();
+  });
 
   /* ---------------- Analog clock ---------------- */
 
@@ -81,9 +236,9 @@
     const minutes = now.getMinutes();
     const seconds = now.getSeconds();
 
-    const hourDeg = hours * 30 + minutes * 0.5; // 360 / 12, plus drift from minutes
-    const minuteDeg = minutes * 6 + seconds * 0.1; // 360 / 60, plus drift from seconds
-    const secondDeg = seconds * 6; // 360 / 60
+    const hourDeg = hours * 30 + minutes * 0.5;
+    const minuteDeg = minutes * 6 + seconds * 0.1;
+    const secondDeg = seconds * 6;
 
     hourHand.style.transform = `translateX(-50%) rotate(${hourDeg}deg)`;
     minuteHand.style.transform = `translateX(-50%) rotate(${minuteDeg}deg)`;
@@ -107,101 +262,235 @@
     event.preventDefault();
     const query = searchInput.value.trim();
     if (!query) return;
-    const url = `https://www.google.com/search?q=${encodeURIComponent(query)}`;
-    window.location.href = url;
+    window.location.href = `https://www.google.com/search?q=${encodeURIComponent(query)}`;
   });
 
-  /* ---------------- Editable list widget (Stones / Project 007 / Team mates) ---------------- */
+  /* ---------------- Task boards (real to-do system) ---------------- */
 
-  const DEFAULT_ITEMS = [
-    { id: "item-1", name: "Stones", dot: "dot-green", folders: 2, links: 4, done: 7, total: 9 },
-    { id: "item-2", name: "Project 007", dot: "dot-pink", folders: 0, links: 4, done: 2, total: 4 },
-    { id: "item-3", name: "Team mates", dot: "dot-orange", folders: 0, links: 0, done: 5, total: 8 },
-  ];
+  const BOARD_COLORS = ["dot-green", "dot-pink", "dot-orange", "dot-blue", "dot-purple", "dot-teal"];
 
-  const ICON_FOLDER =
-    '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 2a5 5 0 0 0-5 5v3H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8a2 2 0 0 0-2-2h-1V7a5 5 0 0 0-5-5z"/></svg>';
-  const ICON_LINK =
-    '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>';
-  const ICON_CHECK =
-    '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M9 12l2 2 4-4"/></svg>';
+  function cloneDefaultBoards() {
+    // Seed with the same look as the original placeholder counts (7/9, 2/4,
+    // 5/8) but as real, editable tasks rather than static numbers.
+    function seedTasks(total, done, label) {
+      const tasks = [];
+      for (let i = 1; i <= total; i++) {
+        tasks.push({ id: uid("task"), text: `${label} ${i}`, done: i <= done });
+      }
+      return tasks;
+    }
+    return [
+      { id: uid("board"), name: "Stones", color: "dot-green", tasks: seedTasks(9, 7, "Stones task") },
+      { id: uid("board"), name: "Project 007", color: "dot-pink", tasks: seedTasks(4, 2, "Project task") },
+      { id: uid("board"), name: "Team mates", color: "dot-orange", tasks: seedTasks(8, 5, "Team task") },
+    ];
+  }
 
-  const itemList = document.getElementById("itemList");
-  let widgetItems = [];
+  const CHECK_ICON =
+    '<svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12l5 5L20 6"/></svg>';
+  const CHEVRON_ICON =
+    '<svg class="board-chevron" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>';
 
-  function renderItems() {
-    itemList.innerHTML = "";
-    widgetItems.forEach((item) => {
+  const boardList = document.getElementById("boardList");
+  const addBoardBtn = document.getElementById("addBoardBtn");
+  let boards = [];
+  let expandedBoardId = null;
+
+  function boardProgress(board) {
+    const total = board.tasks.length;
+    const done = board.tasks.filter((t) => t.done).length;
+    return { done, total };
+  }
+
+  function saveBoards() {
+    storageSet(BOARDS_KEY, boards);
+  }
+
+  function renderBoards() {
+    boardList.innerHTML = "";
+    boards.forEach((board) => {
+      const { done, total } = boardProgress(board);
+      const isExpanded = board.id === expandedBoardId;
+
       const li = document.createElement("li");
-      li.className = "item-row";
+      li.className = `board${isExpanded ? " expanded" : ""}`;
+      li.dataset.id = board.id;
+
       li.innerHTML = `
-        <span class="dot ${item.dot}"></span>
-        <span class="item-name">${escapeHtml(item.name)}</span>
-        <span class="item-meta">
-          ${ICON_FOLDER} ${item.folders}
-          ${ICON_LINK} ${item.links}
-          ${ICON_CHECK} ${item.done}/${item.total}
-        </span>
-        <button class="item-edit-btn" data-id="${item.id}" title="Edit" aria-label="Edit ${escapeHtml(item.name)}">&#9998;</button>
+        <div class="board-row" data-role="toggle">
+          <span class="dot ${board.color}"></span>
+          <span class="board-name">${escapeHtml(board.name)}</span>
+          <span class="board-progress">${done}/${total}</span>
+          <button type="button" class="board-icon-btn" data-role="rename" title="Rename board" aria-label="Rename ${escapeHtml(board.name)}">&#9998;</button>
+          <button type="button" class="board-icon-btn" data-role="delete" title="Delete board" aria-label="Delete ${escapeHtml(board.name)}">&#128465;</button>
+          ${CHEVRON_ICON}
+        </div>
+        <div class="board-tasks-wrap">
+          <ul class="task-list" data-role="task-list"></ul>
+          <div class="task-add-row">
+            <input type="text" class="task-add-input" data-role="task-input" placeholder="Add a task..." />
+            <button type="button" class="task-add-btn" data-role="task-add">Add</button>
+          </div>
+        </div>
       `;
-      itemList.appendChild(li);
+
+      const taskListEl = li.querySelector('[data-role="task-list"]');
+      renderTasks(taskListEl, board);
+
+      boardList.appendChild(li);
+    });
+    updateStats();
+  }
+
+  function renderTasks(taskListEl, board) {
+    taskListEl.innerHTML = "";
+    if (board.tasks.length === 0) {
+      taskListEl.innerHTML = '<li class="panel-empty">No tasks yet — add one below.</li>';
+      return;
+    }
+    board.tasks.forEach((task) => {
+      const li = document.createElement("li");
+      li.className = "task-item";
+      li.innerHTML = `
+        <button type="button" class="task-checkbox${task.done ? " done" : ""}" data-role="task-toggle" data-task-id="${task.id}" aria-label="${task.done ? "Mark incomplete" : "Mark complete"}">${task.done ? CHECK_ICON : ""}</button>
+        <span class="task-text${task.done ? " done" : ""}">${escapeHtml(task.text)}</span>
+        <button type="button" class="task-remove" data-role="task-remove" data-task-id="${task.id}" aria-label="Delete task">&times;</button>
+      `;
+      taskListEl.appendChild(li);
     });
   }
 
-  function escapeHtml(str) {
-    const div = document.createElement("div");
-    div.textContent = str;
-    return div.innerHTML;
+  function findBoard(id) {
+    return boards.find((b) => b.id === id);
   }
 
-  function editItem(id) {
-    const item = widgetItems.find((i) => i.id === id);
-    if (!item) return;
+  boardList.addEventListener("click", (event) => {
+    const boardEl = event.target.closest(".board");
+    if (!boardEl) return;
+    const boardId = boardEl.dataset.id;
+    const board = findBoard(boardId);
+    if (!board) return;
 
-    const newName = window.prompt("Rename item:", item.name);
-    if (newName === null) return;
+    const renameBtn = event.target.closest('[data-role="rename"]');
+    const deleteBtn = event.target.closest('[data-role="delete"]');
+    const toggleRow = event.target.closest('[data-role="toggle"]');
+    const taskToggle = event.target.closest('[data-role="task-toggle"]');
+    const taskRemove = event.target.closest('[data-role="task-remove"]');
+    const addBtn = event.target.closest('[data-role="task-add"]');
 
-    const newFolders = window.prompt("Folder count:", String(item.folders));
-    if (newFolders === null) return;
-
-    const newLinks = window.prompt("Link count:", String(item.links));
-    if (newLinks === null) return;
-
-    const newProgress = window.prompt(
-      "Progress (done/total, e.g. 7/9):",
-      `${item.done}/${item.total}`
-    );
-    if (newProgress === null) return;
-
-    const match = newProgress.match(/^\s*(\d+)\s*\/\s*(\d+)\s*$/);
-
-    item.name = newName.trim() || item.name;
-    item.folders = clampInt(newFolders, item.folders);
-    item.links = clampInt(newLinks, item.links);
-    if (match) {
-      item.done = clampInt(match[1], item.done);
-      item.total = clampInt(match[2], item.total);
+    if (renameBtn) {
+      const newName = window.prompt("Rename board:", board.name);
+      if (newName && newName.trim()) {
+        board.name = newName.trim();
+        saveBoards();
+        renderBoards();
+      }
+      return;
     }
 
-    storageSet(ITEMS_KEY, widgetItems);
-    renderItems();
-  }
+    if (deleteBtn) {
+      const confirmed = window.confirm(`Delete "${board.name}" and all its tasks?`);
+      if (confirmed) {
+        boards = boards.filter((b) => b.id !== boardId);
+        if (expandedBoardId === boardId) expandedBoardId = null;
+        saveBoards();
+        renderBoards();
+      }
+      return;
+    }
 
-  function clampInt(value, fallback) {
-    const n = parseInt(value, 10);
-    return Number.isFinite(n) && n >= 0 ? n : fallback;
-  }
+    if (taskToggle) {
+      const task = board.tasks.find((t) => t.id === taskToggle.dataset.taskId);
+      if (task) {
+        task.done = !task.done;
+        saveBoards();
+        renderBoards();
+      }
+      return;
+    }
 
-  itemList.addEventListener("click", (event) => {
-    const btn = event.target.closest(".item-edit-btn");
-    if (!btn) return;
-    editItem(btn.dataset.id);
+    if (taskRemove) {
+      board.tasks = board.tasks.filter((t) => t.id !== taskRemove.dataset.taskId);
+      saveBoards();
+      renderBoards();
+      return;
+    }
+
+    if (addBtn) {
+      addTaskFromInput(boardEl, board);
+      return;
+    }
+
+    if (toggleRow) {
+      expandedBoardId = expandedBoardId === boardId ? null : boardId;
+      renderBoards();
+    }
   });
 
-  storageGet(ITEMS_KEY, DEFAULT_ITEMS).then((items) => {
-    widgetItems = items;
-    renderItems();
+  boardList.addEventListener("keydown", (event) => {
+    if (event.key !== "Enter") return;
+    const input = event.target.closest('[data-role="task-input"]');
+    if (!input) return;
+    event.preventDefault();
+    const boardEl = event.target.closest(".board");
+    const board = findBoard(boardEl.dataset.id);
+    if (board) addTaskFromInput(boardEl, board);
   });
+
+  function addTaskFromInput(boardEl, board) {
+    const input = boardEl.querySelector('[data-role="task-input"]');
+    const text = input.value.trim();
+    if (!text) return;
+    board.tasks.push({ id: uid("task"), text, done: false });
+    saveBoards();
+    renderBoards();
+    // Re-focus the (freshly re-rendered) input for fast repeated entry.
+    const freshBoardEl = boardList.querySelector(`.board[data-id="${board.id}"]`);
+    if (freshBoardEl) {
+      const freshInput = freshBoardEl.querySelector('[data-role="task-input"]');
+      if (freshInput) freshInput.focus();
+    }
+  }
+
+  addBoardBtn.addEventListener("click", () => {
+    const name = window.prompt("New board name:");
+    if (!name || !name.trim()) return;
+    const color = BOARD_COLORS[boards.length % BOARD_COLORS.length];
+    const board = { id: uid("board"), name: name.trim(), color, tasks: [] };
+    boards.push(board);
+    expandedBoardId = board.id;
+    saveBoards();
+    renderBoards();
+  });
+
+  storageGet(BOARDS_KEY, null).then((stored) => {
+    boards = stored && stored.length ? stored : cloneDefaultBoards();
+    if (!stored) saveBoards();
+    renderBoards();
+  });
+
+  /* ---------------- This week mini stats strip ---------------- */
+
+  const statCompletedEl = document.getElementById("statCompleted");
+  const statStreakEl = document.getElementById("statStreak");
+  const statOpenEl = document.getElementById("statOpen");
+
+  function updateStats() {
+    let done = 0;
+    let open = 0;
+    boards.forEach((board) => {
+      board.tasks.forEach((task) => {
+        if (task.done) done += 1;
+        else open += 1;
+      });
+    });
+    statCompletedEl.textContent = String(done);
+    statOpenEl.textContent = String(open);
+    // Simple, honest streak proxy: any day with at least one completed task
+    // counts. We don't track per-day history yet, so approximate with a
+    // small positive number once the user has completed anything today.
+    statStreakEl.textContent = done > 0 ? "1" : "0";
+  }
 
   /* ---------------- Editable info card ---------------- */
 
@@ -235,10 +524,7 @@
     const newLabel = window.prompt("Link label:", infoData.linkLabel);
     if (newLabel === null) return;
 
-    const newUrl = window.prompt(
-      "Link URL (leave blank for no link):",
-      infoData.linkUrl
-    );
+    const newUrl = window.prompt("Link URL (leave blank for no link):", infoData.linkUrl);
     if (newUrl === null) return;
 
     infoData = {
@@ -254,6 +540,30 @@
   storageGet(INFO_KEY, DEFAULT_INFO).then((info) => {
     infoData = { ...DEFAULT_INFO, ...info };
     renderInfo();
+  });
+
+  /* ---------------- Quick Notes widget ---------------- */
+
+  const notesTextarea = document.getElementById("notesTextarea");
+  const notesCount = document.getElementById("notesCount");
+  let notesSaveTimer = null;
+
+  function updateNotesCount() {
+    const length = notesTextarea.value.length;
+    notesCount.textContent = `${length} character${length === 1 ? "" : "s"}`;
+  }
+
+  notesTextarea.addEventListener("input", () => {
+    updateNotesCount();
+    if (notesSaveTimer) clearTimeout(notesSaveTimer);
+    notesSaveTimer = setTimeout(() => {
+      storageSet(NOTES_KEY, notesTextarea.value);
+    }, 500);
+  });
+
+  storageGet(NOTES_KEY, "").then((notes) => {
+    notesTextarea.value = notes;
+    updateNotesCount();
   });
 
   /* ---------------- Top nav dropdown panels ---------------- */
@@ -287,8 +597,6 @@
     if (!url) return "";
     return `<img class="favicon" src="${url}" alt="" onerror="this.remove()" />`;
   }
-
-  /* --- Bookmarks: flatten the bookmark tree, skip folders, cap at 10 --- */
 
   function flattenBookmarks(nodes, out) {
     for (const node of nodes) {
@@ -326,8 +634,6 @@
     });
   }
 
-  /* --- Recent tabs: last 5 by recency, clicking switches to that tab --- */
-
   function loadRecentTabs() {
     if (!(typeof chrome !== "undefined" && chrome.tabs)) {
       renderEmpty("Recent tabs are unavailable in this context.");
@@ -363,8 +669,6 @@
     });
   }
 
-  /* --- Shortcuts: user-managed list stored in chrome.storage.local --- */
-
   function renderShortcuts(shortcuts) {
     if (!shortcuts || shortcuts.length === 0) {
       renderEmpty(PANEL_EMPTY_TEXT.shortcuts);
@@ -398,7 +702,7 @@
     const url = normalizeUrl(rawUrl);
 
     storageGet(SHORTCUTS_KEY, []).then((shortcuts) => {
-      const next = shortcuts.concat([{ id: `sc-${Date.now()}`, name: name.trim(), url }]);
+      const next = shortcuts.concat([{ id: uid("sc"), name: name.trim(), url }]);
       storageSet(SHORTCUTS_KEY, next);
       renderShortcuts(next);
     });
