@@ -1041,6 +1041,14 @@ body {
   animation: overlay-in 0.18s ease;
 }
 
+/* An explicit `display: flex` above always wins over the browser's built-in
+   `[hidden] { display: none }` rule (author CSS beats UA CSS regardless of
+   specificity), so without this override the panel never actually hides
+   once `hidden` is set back to true. */
+.settings-overlay[hidden] {
+  display: none;
+}
+
 @keyframes overlay-in {
   from { opacity: 0; }
   to { opacity: 1; }
