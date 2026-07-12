@@ -1,0 +1,71 @@
+# Replit AI Agent Prompt — Neumorphism Chrome New Tab Extension
+
+Act as an Expert Frontend Developer and UI/UX Designer specializing in Neumorphism (Soft UI). Build a functional Chrome New Tab Extension (Manifest V3) using HTML, CSS, and vanilla JavaScript.
+
+**Reference the attached image for exact layout, spacing, proportions, and visual style — match it as closely as possible.**
+
+Generate complete, ready-to-use code for: `index.html`, `style.css`, `script.js`, `manifest.json`.
+
+---
+
+## 1. Design System & Global Styles
+
+- **Theme:** Neumorphism / Soft UI
+- **Background:** `#e0e5ec` — use for body and all component surfaces
+- **Text:** Deep grey/charcoal (`#3a3a4c`) primary, lighter grey (`#8a8ea3`) secondary
+- **Typography:** System font stack only — `-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif`. **Do NOT use external @import or Google Fonts links** — Manifest V3's default Content Security Policy blocks remote font/script loading. If a custom font is needed, self-host the `.woff2` file inside the extension folder.
+- **Shadows:** Extruded (embossed) elements use `box-shadow: 8px 8px 16px #a3b1c6, -8px -8px 16px #ffffff`. Pressed/inset elements use `box-shadow: inset 6px 6px 12px #a3b1c6, inset -6px -6px 12px #ffffff`. Light source top-left throughout.
+
+## 2. Layout Architecture
+
+Main wrapper: centered dashboard container, rounded corners (`border-radius: 30px`), soft neumorphic shadow, fixed max-width (~1100px) that adapts gracefully to different **browser window sizes** (this is a New Tab page — no mobile breakpoints needed, just fluid scaling between small/large desktop windows).
+
+**Top Navigation Bar:**
+- Left: circular profile/menu icon (embossed)
+- Center: replace generic SaaS links with **functional New Tab items**: "Bookmarks", "Recent Tabs", "Shortcuts"
+- Right: search bar with inset/debossed shadow that **actually submits queries** — on Enter, redirect to `https://www.google.com/search?q={encoded input}` in the current tab. Include a user profile icon.
+
+**Left Column (Widgets):**
+- **Widget 1 (Clock):** analog clock, inset-shadow circular dial, functional hour/minute/second hands driven by JS `Date` object updating every second. Include a **dark mode toggle switch** in the top-right corner of this widget (functionality below). Below the clock, show live date (`DD/MM` format, not hardcoded) with a small label.
+- **Widget 2 (List):** 3 items ("Stones", "Project 007", "Team mates") each with a colored dot (green/pink/orange) left, placeholder icons/counts right. Embossed card container.
+- **Widget 3 (Info card):** small placeholder image left (CSS gradient block or inline SVG — no external image dependency), text "Focus on tasks that matter" + "Learn more" link right.
+
+**Right Column (Hero):**
+- Large embossed card
+- Heading "DāLLO", subheading "Your Balanced Approach to Project Management", "Join Dallo" CTA link
+- Image area: use an **inline SVG illustration or CSS-drawn stacked-shapes graphic** as placeholder (no broken external image links — extensions can't reliably fetch remote images under CSP without explicit `img-src` permissions)
+- Bottom-right: pagination dots/arrows in embossed pill container (decorative, no function needed)
+
+## 3. Functionality Requirements
+
+- **Dark mode toggle:** clicking it swaps CSS variables for background/shadow colors (dark neumorphism: `#2a2d3a` base) and **persists the choice** using `chrome.storage.local` (not `localStorage`, which doesn't reliably persist in extension contexts).
+- **Clock:** must use `setInterval` and real `Date` object — no static SVG hands.
+- **Search bar:** functional, submits on Enter key.
+
+## 4. manifest.json Requirements
+
+```json
+{
+  "manifest_version": 3,
+  "name": "Dallo Neumorphic New Tab",
+  "version": "1.0",
+  "chrome_url_overrides": {
+    "newtab": "index.html"
+  },
+  "permissions": ["storage"],
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  }
+}
+```
+Also generate simple placeholder icon files (or instructions to create them) for `icons/icon16.png`, `icon48.png`, `icon128.png`.
+
+## 5. Technical Constraints
+
+- No external CDN links (fonts, images, JS libraries) — everything self-contained per Manifest V3 CSP.
+- `script.js` must be a separate file, loaded via `<script src="script.js">` — inline `<script>` tags or `onclick=""` attributes are blocked by default CSP.
+- Code must be clean, modular, commented, and split logically across the three files.
+
+Provide output strictly in ready-to-use code blocks per file.
