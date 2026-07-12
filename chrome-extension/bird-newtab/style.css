@@ -1,5 +1,5 @@
 /* ============================================================
-   Dallo Neumorphic New Tab — Styles
+   Bird Neumorphic New Tab — Styles
    Soft UI (neumorphism): light source top-left throughout.
    ============================================================ */
 
@@ -49,11 +49,8 @@ body {
   background: var(--bg);
   color: var(--text-primary);
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  width: 100vw;
   min-height: 100vh;
-  padding: 32px;
   transition: background 0.35s ease, color 0.35s ease;
 }
 
@@ -67,15 +64,24 @@ body {
   box-shadow: var(--shadow-in);
 }
 
-/* ---------------- Dashboard shell ---------------- */
+/* ---------------- Full-viewport page + centered dashboard ---------------- */
+/* The page itself IS the neumorphic surface (no artificial boxed card) --
+   individual widgets carry their own embossed/inset shadows. The inner
+   .dashboard just caps line length on very wide (ultrawide) screens while
+   letting the background span the full viewport. */
+
+.page {
+  width: 100vw;
+  min-height: 100vh;
+  background: var(--bg);
+  display: flex;
+  justify-content: center;
+  padding: clamp(20px, 3vw, 48px);
+}
 
 .dashboard {
   width: 100%;
-  max-width: 1100px;
-  background: var(--surface);
-  border-radius: var(--radius-xl);
-  box-shadow: var(--shadow-out);
-  padding: clamp(16px, 2.4vw, 32px);
+  max-width: 1400px;
   display: flex;
   flex-direction: column;
   gap: clamp(16px, 2.2vw, 28px);
@@ -151,7 +157,7 @@ body {
   border-radius: 999px;
   box-shadow: var(--shadow-in-sm);
   padding: 9px 16px;
-  min-width: clamp(140px, 18vw, 240px);
+  min-width: clamp(140px, 18vw, 280px);
 }
 
 .search-icon {
@@ -217,10 +223,37 @@ body {
   text-decoration: none;
   cursor: pointer;
   transition: box-shadow 0.15s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: none;
+  font-family: inherit;
 }
 
 .panel-item:hover {
   box-shadow: var(--shadow-in-sm);
+}
+
+.panel-item img.favicon {
+  width: 14px;
+  height: 14px;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+
+.panel-item .remove-shortcut {
+  margin-left: 2px;
+  color: var(--text-secondary);
+  font-size: 14px;
+  line-height: 1;
+  border: none;
+  background: none;
+  cursor: pointer;
+  padding: 0;
+}
+
+.panel-item .remove-shortcut:hover {
+  color: #c0564f;
 }
 
 .panel-empty {
@@ -228,11 +261,34 @@ body {
   color: var(--text-secondary);
 }
 
+.panel-footer {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(138, 142, 163, 0.25);
+}
+
+.add-shortcut-btn {
+  background: var(--surface);
+  box-shadow: var(--shadow-out-sm);
+  border: none;
+  border-radius: var(--radius-sm);
+  padding: 8px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.add-shortcut-btn:active {
+  box-shadow: var(--shadow-in-sm);
+}
+
 /* ---------------- Content grid ---------------- */
 
 .content {
   display: grid;
-  grid-template-columns: minmax(220px, 320px) 1fr;
+  grid-template-columns: minmax(220px, 340px) 1fr;
   gap: clamp(14px, 2vw, 24px);
   align-items: stretch;
 }
@@ -369,17 +425,18 @@ body {
   flex-direction: column;
   align-items: center;
   margin-top: 16px;
-}
-
-.date-label {
-  font-size: 12px;
-  color: var(--text-secondary);
+  gap: 2px;
 }
 
 .date-value {
   font-size: 22px;
   font-weight: 600;
   letter-spacing: 0.04em;
+}
+
+.day-value {
+  font-size: 12px;
+  color: var(--text-secondary);
 }
 
 /* ---------------- List widget ---------------- */
@@ -430,12 +487,27 @@ body {
   margin-right: 1px;
 }
 
+.item-edit-btn {
+  border: none;
+  background: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: 13px;
+  padding: 2px 4px;
+  flex-shrink: 0;
+}
+
+.item-edit-btn:hover {
+  color: var(--text-primary);
+}
+
 /* ---------------- Info widget ---------------- */
 
 .info-card {
   display: flex;
   align-items: center;
   gap: 16px;
+  position: relative;
 }
 
 .info-thumb {
@@ -462,6 +534,11 @@ body {
 .c5 { background: var(--accent-pink); opacity: 0.7; }
 .c6 { background: var(--accent-green); opacity: 0.7; }
 
+.info-text {
+  flex: 1;
+  min-width: 0;
+}
+
 .info-text p {
   margin: 0 0 8px;
   font-size: 14px;
@@ -482,6 +559,22 @@ body {
 .arrow {
   display: inline-block;
   transform: translateY(-1px);
+}
+
+.edit-btn {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  border: none;
+  background: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: 14px;
+  padding: 2px 4px;
+}
+
+.edit-btn:hover {
+  color: var(--text-primary);
 }
 
 /* ---------------- Hero card ---------------- */
@@ -505,22 +598,14 @@ body {
   font-size: clamp(28px, 3.4vw, 40px);
   margin: 0 0 12px;
   font-weight: 600;
-  letter-spacing: 0.02em;
-}
-
-.macron {
-  position: relative;
+  letter-spacing: 0.06em;
 }
 
 .hero-subtitle {
   font-size: 14px;
   color: var(--text-secondary);
   line-height: 1.5;
-  margin: 0 0 16px;
-}
-
-.join-link {
-  font-size: 14px;
+  margin: 0;
 }
 
 .hero-art {
